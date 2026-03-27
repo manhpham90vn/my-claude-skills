@@ -9,16 +9,22 @@ description: |
 
   Parameters:
       PR_URL (required): GitHub PR URL, ví dụ: https://github.com/owner/repo/pull/123
-      --checklist (optional): Tên checklist trong docs/ để sử dụng.
+      --checklist (optional): Tên checklist(s) để sử dụng, có thể dùng nhiều checklist cùng lúc (comma-separated).
           - laravel: Checklist cho Laravel/PHP projects
-          - html-css: Checklist cho HTML/CSS/JS projects
-          - cdk-docker: Checklist cho AWS CDK + Docker infrastructure (TypeScript)
+          - html-css: Checklist cho HTML & CSS thuần (không có framework)
+          - blade-livewire-tailwind: Checklist cho Blade, Livewire & Tailwind CSS
+          - docker: Checklist cho Docker & Container
+          - github-actions: Checklist cho GitHub Actions & CI/CD
+          - typescript: Checklist cho TypeScript & Node.js
+          - cdk-infra: Checklist cho AWS CDK & Infrastructure
           - Nếu không chỉ định, mặc định dùng "laravel"
+          - Có thể kết hợp nhiều checklist: --checklist=laravel,blade-livewire-tailwind,docker
 
   Ví dụ:
       /review-pr-github https://github.com/acme/backend/pull/42
       /review-pr-github https://github.com/acme/frontend/pull/15 --checklist=html-css
-      /review-pr-github https://github.com/acme/infra/pull/99 --checklist=cdk-docker
+      /review-pr-github https://github.com/acme/infra/pull/99 --checklist=cdk-infra
+      /review-pr-github https://github.com/acme/fullstack/pull/88 --checklist=laravel,docker,github-actions
 compatibility:
   tools: [bash]
   dependencies: [gh (GitHub CLI)]
@@ -63,19 +69,29 @@ Từ URL người dùng cung cấp, trích xuất:
 
 ---
 
-### Bước 3: Load Checklist
+### Bước 3: Load Checklist(s)
 
-**Đọc checklist từ thư mục `docs/`:**
+**Đọc checklist(s) từ thư mục `docs/`:**
 
 1. Kiểm tra parameter `--checklist` mà người dùng truyền vào:
-   - Nếu `--checklist=laravel` hoặc không có param → đọc `.claude/skills/review-pr-github/docs/laravel.md`
-   - Nếu `--checklist=html-css` → đọc `.claude/skills/review-pr-github/docs/html-css.md`
-   - Nếu `--checklist=cdk-docker` → đọc `.claude/skills/review-pr-github/docs/cdk-docker.md`
+   - Nếu có comma-separated values (ví dụ: `laravel,docker,github-actions`): parse và load nhiều checklist
+   - Nếu là single value hoặc không có param: mặc định là `laravel`
+
+2. **Danh sách checklist files:**
+   - `laravel.md` — Laravel/PHP projects
+   - `html-css.md` — HTML & CSS thuần (pure frontend, không framework)
+   - `blade-livewire-tailwind.md` — Blade templates, Livewire, Alpine.js & Tailwind CSS
+   - `docker.md` — Docker & Container
+   - `github-actions.md` — GitHub Actions & CI/CD
+   - `typescript.md` — TypeScript & Node.js
+   - `cdk-infra.md` — AWS CDK & Infrastructure
+
+3. Load tất cả checklist files được chỉ định vào biến `CHECKLIST_CONTENT`:
+   - Đọc tất cả file được yêu cầu
+   - Merge nội dung lại (rules có thể overlap nhưng khác rule ID)
    - Nếu checklist không tồn tại → báo lỗi và dừng lại
 
-2. Đọc nội dung checklist đã chọn vào biến `CHECKLIST_CONTENT`.
-
-3. Phân tích checklist để xác định:
+4. Phân tích checklist đã merge để xác định:
    - Các rule cần kiểm tra (rule ID, priority)
    - Các tiêu chí đặc biệt cần áp dụng cho project này
 
@@ -83,12 +99,17 @@ Từ URL người dùng cung cấp, trích xuất:
 
 ```
 .claude/skills/review-pr-github/
-├── SKILL.md              # Skill chính
+├── SKILL.md                    # Skill chính
 ├── docs/
-│   ├── laravel.md        # Checklist cho Laravel/PHP
-│   └── html-css.md       # Checklist cho HTML/CSS/JS
+│   ├── laravel.md              # Checklist cho Laravel/PHP
+│   ├── html-css.md             # Checklist cho HTML & CSS thuần
+│   ├── blade-livewire-tailwind.md  # Checklist cho Blade, Livewire & Tailwind
+│   ├── docker.md               # Checklist cho Docker & Container
+│   ├── github-actions.md       # Checklist cho GitHub Actions & CI/CD
+│   ├── typescript.md           # Checklist cho TypeScript & Node.js
+│   └── cdk-infra.md           # Checklist cho AWS CDK & Infrastructure
 └── scripts/
-    └── diff.sh           # Script hỗ trợ map line number
+    └── diff.sh                 # Script hỗ trợ map line number
 ```
 
 ---
@@ -97,7 +118,7 @@ Từ URL người dùng cung cấp, trích xuất:
 
 1. Xác minh thư mục hiện tại là một git repo có remote origin đúng với `<OWNER>/<REPO>`. Nếu không, trả về lỗi: "Thư mục hiện tại không phải là git repo hoặc remote origin không khớp với `<OWNER>/<REPO>`. Vui lòng chuyển đến thư mục chứa repo hoặc clone repo trước."
 2. Checkout branch của PR bằng `gh pr checkout <PR_NUMBER>`.
-3. Lấy **PR head commit SHA** bằng `gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}" --jq '.head.sha'` và lưu vào biến `PR_HEAD_SHA` để sử đụng cho `Bước 8: Đăng review lên GitHub`.
+3. Lấy **PR head commit SHA** bằng `gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}" --jq '.head.sha'` và lưu vào biến `PR_HEAD_SHA` để sử dụng cho `Bước 8: Đăng review lên GitHub`.
 4. Lấy diff của PR với `gh pr diff <PR_NUMBER>` và lưu vào `/tmp/pr_review_<PREFIX>.diff` (ví dụ: `/tmp/pr_review_acme_backend_42.diff`) bằng command `gh pr diff <PR_NUMBER> > /tmp/pr_review_<PREFIX>.diff`.
 5. Phân tích file `composer.json` để xác định các công cụ formater/linter có sẵn (phpstan, php-cs-fixer, pint) và cài đặt dependencies nếu cần (ví dụ: `composer install`).
 6. Phân tích file `package.json` để xác định các công cụ formater/linter có sẵn cho frontend (eslint, prettier) và cài đặt dependencies nếu cần (ví dụ: `npm install` hoặc `yarn install`).
@@ -134,7 +155,7 @@ Ghi nhớ vị trí các file log để phân tích ở `Bước 6: Phân tích 
 
 **Phân tích theo tiêu chí:**
 
-CHECKLIST_CONTENT - (đã load ở `Bước 3: Load Checklist`)
+CHECKLIST_CONTENT - (đã load ở `Bước 3: Load Checklist(s)` - có thể bao gồm nhiều checklist)
 
 ---
 

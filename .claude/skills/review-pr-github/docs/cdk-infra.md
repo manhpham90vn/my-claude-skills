@@ -1,39 +1,6 @@
-# CDK + Docker Infrastructure Checklist (TypeScript)
+# CDK Infrastructure Checklist (TypeScript)
 
-## 1. 🐳 Docker Image
-
-| Rule ID | Priority | Tiêu chí đánh giá |
-| :------ | :------- | :----------------- |
-| **RULE_DOCKER_01** | 🔴 Critical | Không chạy container với user `root`. Dùng `USER` instruction để switch sang non-root user. |
-| **RULE_DOCKER_02** | 🔴 Critical | Không hardcode credentials, secret, token trong Dockerfile. Dùng `ARG` hoặc secret mount từ bên ngoài. |
-| **RULE_DOCKER_03** | 🔴 Critical | Không dùng image `latest` tag — phải lock version cụ thể để đảm bảo reproducible build. |
-| **RULE_DOCKER_04** | 🔴 Critical | Cần có `.dockerignore` để loại trừ `node_modules`, `.git`, secrets, và file không cần thiết vào context. |
-| **RULE_DOCKER_05** | 🔴 Critical | Multi-stage build: stage 1 dùng `node:<version>-alpine` hoặc `node:<version>-slim` để build, stage 2 chỉ copy artifact vào image production nhỏ hơn. |
-| **RULE_DOCKER_06** | 🟠 High | Thứ tự Dockerfile instruction phải tối ưu cache: dependency install (package.json) trước, source code copy sau cùng. Thay đổi source code không invalidate dependency layer. |
-| **RULE_DOCKER_07** | 🟠 High | Base image phải được scan lỗ hổng bảo mật (Trivy, Snyk, Grype) trước khi deploy lên môi trường production. |
-| **RULE_DOCKER_08** | 🟠 High | Health check: mọi container production phải có `HEALTHCHECK` instruction hoặc target health endpoint qua load balancer. |
-| **RULE_DOCKER_09** | 🟡 Medium | Dùng `EXPOSE` đúng port, không expose port không cần thiết (chỉ expose port ứng dụng thực sự listen). |
-| **RULE_DOCKER_10** | 🟡 Medium | Không có comment chứa thông tin nhạy cảm (token, endpoint, password mẫu) trong Dockerfile. |
-
----
-
-## 2. ☸️ Docker Compose (Development & Production)
-
-| Rule ID | Priority | Tiêu chí đánh giá |
-| :------ | :------- | :----------------- |
-| **RULE_COMPOSE_01** | 🔴 Critical | Không lưu secrets trực tiếp trong `docker-compose.yml` — dùng `.env` file hoặc `env_file`, và đảm bảo `.env` được add vào `.gitignore`. |
-| **RULE_COMPOSE_02** | 🔴 Critical | Services phải có `restart: unless-stopped` hoặc `restart: on-failure` với limit để đảm bảo self-healing. |
-| **RULE_COMPOSE_03** | 🟠 High | Khai báo `depends_on` với `condition: service_healthy` thay vì chỉ liệt kê tên service — tránh race condition khi database chưa ready. |
-| **RULE_COMPOSE_04** | 🟠 High | Đặt resource limits (`deploy.resources.limits`) cho mỗi service để tránh container ngốn hết RAM/CPU. |
-| **RULE_COMPOSE_05** | 🟠 High | Dùng volume named thay vì bind mount cho data persistence. Bind mount chỉ dùng cho development. |
-| **RULE_COMPOSE_06** | 🟠 High | Production compose file (`docker-compose.prod.yml`) phải tách biệt với development, không dùng dev dependencies. |
-| **RULE_COMPOSE_07** | 🟡 Medium | Đặt `container_name` cố định thay vì random name để dễ quản lý và monitoring. |
-| **RULE_COMPOSE_08** | 🟡 Medium | Dùng `networks` để phân tách network zones (frontend, backend, database) — không dùng default network cho mọi thứ. |
-| **RULE_COMPOSE_09** | 🟡 Medium | Health check trên database và cache services (postgres, redis) để đảm bảo `depends_on` hoạt động đúng. |
-
----
-
-## 3. 🔰 AWS CDK TypeScript
+## 1. 🔰 AWS CDK TypeScript
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -54,7 +21,7 @@
 
 ---
 
-## 4. 🚢 ECS (Elastic Container Service)
+## 2. 🚢 ECS (Elastic Container Service)
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -73,7 +40,7 @@
 
 ---
 
-## 5. ☁️ EC2 (Elastic Compute Cloud)
+## 3. ☁️ EC2 (Elastic Compute Cloud)
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -91,7 +58,7 @@
 
 ---
 
-## 6. 🛰️ ALB / NLB (Load Balancer)
+## 4. 🛰️ ALB / NLB (Load Balancer)
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -108,7 +75,7 @@
 
 ---
 
-## 7. ⚡ Lambda
+## 5. ⚡ Lambda
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -126,12 +93,12 @@
 
 ---
 
-## 8. 🌍 Route 53
+## 6. 🌍 Route 53
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
 | **RULE_R53_01** | 🔴 Critical | DNSSEC signing: enabled cho domain để prevent DNS spoofing. Kiểm tra `KeySigningKey` status định kỳ. |
-| **RULE_R53_02** | 🔴 Critical | Health checks: tất cả record quan trọng ( failover, weighted) phải có health check gắn vào. |
+| **RULE_R53_02** | 🔴 Critical | Health checks: tất cả record quan trọng (failover, weighted) phải có health check gắn vào. |
 | **RULE_R53_03** | 🔴 Critical | Alias record: dùng cho ALB/CloudFront/NLB/VPC endpoint thay vì CNAME để giảm latency và chi phí. |
 | **RULE_R53_04** | 🟠 High | TTL: set TTL hợp lý. Low TTL (< 60s) cho failover records, higher TTL (300-3600s) cho static records để giảm query cost. |
 | **RULE_R53_05** | 🟠 High | Routing policy: dùng `multivalue-answer` thay vì simple record nếu cần basic health check-based failover. |
@@ -141,7 +108,7 @@
 
 ---
 
-## 9. 🔔 EventBridge
+## 7. 🔔 EventBridge
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -156,7 +123,7 @@
 
 ---
 
-## 10. 🔄 Step Functions
+## 8. 🔄 Step Functions
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -173,7 +140,7 @@
 
 ---
 
-## 11. 💾 Aurora (PostgreSQL / MySQL)
+## 9. 💾 Aurora (PostgreSQL / MySQL)
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -192,7 +159,7 @@
 
 ---
 
-## 12. 💎 ElastiCache (Redis / Memcached)
+## 10. 💎 ElastiCache (Redis / Memcached)
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -208,7 +175,7 @@
 
 ---
 
-## 13. 🌐 CloudFront
+## 11. 🌐 CloudFront
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -226,7 +193,7 @@
 
 ---
 
-## 14. ☁️ VPC (Virtual Private Cloud)
+## 12. ☁️ VPC (Virtual Private Cloud)
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -245,7 +212,7 @@
 
 ---
 
-## 15. 🪝 CloudFormation
+## 13. 🪝 CloudFormation
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -262,7 +229,7 @@
 
 ---
 
-## 16. 👤 IAM Role & Policy
+## 14. 👤 IAM Role & Policy
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -280,26 +247,7 @@
 
 ---
 
-## 17. 🔄 GitHub Actions
-
-| Rule ID | Priority | Tiêu chí đánh giá |
-| :------ | :------- | :----------------- |
-| **RULE_GHA_01** | 🔴 Critical | Secrets: không access GitHub Secrets trong log output (`::add-mask::` hoặc không echo secrets). |
-| **RULE_GHA_02** | 🔴 Critical | OIDC: dùng `actions/checkout@v4` và AWS OIDC Role thay vì long-term access key. Cấu hình `permissions: id-token: write`. |
-| **RULE_GHA_03** | 🔴 Critical | `actions/checkout`: luôn specify `persist-credentials: false` nếu không cần git credentials. |
-| **RULE_GHA_04** | 🟠 High | Checkout với `sparse-checkout` để chỉ clone directory cần thiết — giảm attack surface. |
-| **RULE_GHA_05** | 🟠 High | Pin action versions bằng SHA (`actions/checkout@b4ffde65f46336ab88af53f90cecc9`) thay vì `@v4` — prevent supply chain attack. |
-| **RULE_GHA_06** | 🟠 High | Matrix strategy: dùng cho multi-version testing (Node 18, 20, 22). Không hardcode version trong step. |
-| **RULE_GHA_07** | 🟠 High | Caching: cache `node_modules`, Docker layers, CDK context để speed up workflow. |
-| **RULE_GHA_08** | 🟠 High | Timeout: đặt `timeout-minutes` cho mỗi job (recommend <= 30 phút) để tránh zombie jobs. |
-| **RULE_GHA_09** | 🟠 High | Fail-fast: `fail-fast: true` trong matrix để stop early khi có lỗi. |
-| **RULE_GHA_10** | 🟡 Medium | Artifact retention: set `retention-days` phù hợp (recommend <= 7 ngày) để tiết kiệm storage. |
-| **RULE_GHA_11** | 🟡 Medium | Concurrency group: `concurrency: group: ${{ github.workflow }}-${{ github.ref }}` để cancel in-progress runs on new push. |
-| **RULE_GHA_12** | 🟡 Medium | Code coverage: upload coverage artifact vào Codecov/S3, không chỉ hiển thị trong log. |
-
----
-
-## 18. 🔒 Security & IAM (General)
+## 15. 🔒 Security & IAM (General)
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -315,35 +263,7 @@
 
 ---
 
-## 19. 🔄 CI/CD Pipeline (CodePipeline / CodeBuild)
-
-| Rule ID | Priority | Tiêu chí đánh giá |
-| :------ | :------- | :----------------- |
-| **RULE_PIPE_01** | 🔴 Critical | Pipeline phải có manual approval gate trước khi deploy production. |
-| **RULE_PIPE_02** | 🔴 Critical | Build spec / pipeline definition phải được lưu trong source code (không hardcode trong CodePipeline console). |
-| **RULE_PIPE_03** | 🔴 Critical | Artifact bucket phải có versioning và encryption enabled. Không dùng default S3 bucket. |
-| **RULE_PIPE_04** | 🟠 High | Pipeline phải chạy `cdk diff` trong build stage để review thay đổi trước khi deploy. |
-| **RULE_PIPE_05** | 🟠 High | Test stage phải chạy trước deploy: unit test, integration test, security scan (npm audit, trivy). |
-| **RULE_PIPE_06** | 🟠 High | Image push lên ECR phải có tag theo git commit SHA (`git rev-parse HEAD`) — không dùng `latest`. |
-| **RULE_PIPE_07** | 🟠 High | Cross-environment promotion: image được build và scan ở staging, chỉ promote lên production khi pass all checks. |
-| **RULE_PIPE_08** | 🟡 Medium | Pipeline nên có notify qua SNS/Chatbot khi deployment thất bại. |
-| **RULE_PIPE_09** | 🟡 Medium | Deploy rollback tự động: CodeDeploy hoặc ECS deployment với `rollbackOnFailure: true`. |
-
----
-
-## 20. 🧪 Testing & Validation
-
-| Rule ID | Priority | Tiêu chí đánh giá |
-| :------ | :------- | :----------------- |
-| **RULE_TEST_01** | 🔴 Critical | CDK code phải có unit test cho every Stack/Construct — dùng `@aws-cdk/assert` hoặc `@aws-cdk-testing/青龙` assertions. |
-| **RULE_TEST_02** | 🟠 High | Integration test: deploy infrastructure vào test environment, chạy automated tests, teardown. |
-| **RULE_TEST_03** | 🟠 High | Snapshot test cho CloudFormation output để detect infrastructure drift. |
-| **RULE_TEST_04** | 🟠 High | `cdk synth` phải pass trong CI — nếu synth fail thì không deploy. |
-| **RULE_TEST_05** | 🟡 Medium | Policy validation test: Lambda execution role không có wildcard resource. |
-
----
-
-## 21. 📈 Observability & Cost
+## 16. 📈 Observability & Cost
 
 | Rule ID | Priority | Tiêu chí đánh giá |
 | :------ | :------- | :----------------- |
@@ -352,14 +272,3 @@
 | **RULE_MON_03** | 🟡 Medium | Structured logging: application log phải có format JSON với fields: `timestamp`, `level`, `message`, `requestId`, `userId`. |
 | **RULE_MON_04** | 🟡 Medium | X-ray tracing enabled cho Lambda và ECS để debug latency issues. |
 | **RULE_MON_05** | 🟡 Medium | Resource tagging nhất quán: mọi resource phải có tag `Environment`, `Project`, `CostCenter`, `Owner`. |
-
----
-
-## 22. 📦 Dependencies & Configuration
-
-| Rule ID | Priority | Tiêu chí đánh giá |
-| :------ | :------- | :----------------- |
-| **RULE_DEP_01** | 🔴 Critical | `package-lock.json` hoặc `yarn.lock` phải được commit. Không commit `node_modules/`. |
-| **RULE_DEP_02** | 🟠 High | npm audit / yarn audit chạy trong CI, fail nếu có vulnerability Critical/High. |
-| **RULE_DEP_03** | 🟠 High | CDK constructs version phải nhất quán (dùng `cdk.json` `cdkVersions` để validate). |
-| **RULE_DEP_04** | 🟡 Medium | Dùng `npm ci` / `yarn --frozen-lockfile` trong CI thay vì `npm install` để đảm bảo reproducible build. |
