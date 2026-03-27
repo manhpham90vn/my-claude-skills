@@ -55,7 +55,9 @@ Từ URL người dùng cung cấp, trích xuất:
 
 **Ví dụ:** `https://github.com/acme/backend/pull/42` → OWNER=acme, REPO=backend, PR_NUMBER=42
 
-- Tạo PREFIX=`<OWNER>_<REPO>_<PR_NUMBER>` để sử dụng cho các bước tiếp theo (ví dụ: `acme_backend_42`).
+- Tạo PREFIX=`<OWNER>_<REPO>_<PR_NUMBER>` để sử dụng cho các bước tiếp theo
+
+**Ví dụ:** `https://github.com/acme/backend/pull/42` -> PREFIX=`acme_backend_42`.
 
 ---
 
@@ -199,14 +201,13 @@ Dùng ngôn ngữ đã chọn cho tất cả comment đăng lên GitHub.
 
 ### Bước 8: Đăng review lên GitHub
 
-Sau khi xuất kết quả review, **tự động đăng review lên GitHub**
+- Sau khi xuất kết quả review, **tự động đăng review lên GitHub** (dùng GitHub CLI (`gh`) để đăng review với các comment đã chuẩn bị)
+- Lưu ý quan trọng phải tuân thủ các quy tắc sau khi đăng review:
+    - `$JSON_FILE` là file JSON đã tạo ở bước 6 `/tmp/gh_review_<PREFIX>.json`(ví dụ:`/tmp/gh_review_acme_backend_42.json`)
+    - Không thêm trường body khi đăng review vì tôi chỉ muốn tạo comment trên từng dòng cụ thể, không cần comment chung cho toàn PR.
+    - Nếu file bị xóa hoàn toàn thì không cần tạo comment vì không thể comment trên dòng đã bị xóa. Chỉ comment trên các dòng mới hoặc đã thay đổi.
 
-Dùng GitHub CLI (`gh`) để đăng review với các comment đã chuẩn bị
-Lưu ý quan trọng phải tuân thủ các quy tắc sau khi đăng review:
-
-- `$JSON_FILE` là file JSON đã tạo ở bước 6 `/tmp/gh_review_<PREFIX>.json`(ví dụ:`/tmp/gh_review_acme_backend_42.json`)
-- Không thêm trường body khi đăng review vì tôi chỉ muốn tạo comment trên từng dòng cụ thể, không cần comment chung cho toàn PR.
-- Nếu file bị xóa hoàn toàn thì không cần tạo comment vì không thể comment trên dòng đã bị xóa. Chỉ comment trên các dòng mới hoặc đã thay đổi.
+**Câu lệnh để đăng review lên GitHub:**
 
 ```sh
 gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}/reviews" \
