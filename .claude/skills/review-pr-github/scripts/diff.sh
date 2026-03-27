@@ -21,7 +21,9 @@ while IFS= read -r line; do
     # File header
     case "$line" in
       '--- a/'*)
+        # Strip "--- a/" prefix, then strip trailing tab + metadata (e.g. "filename\ttimestamp")
         current_file="${line#--- a/}"
+        current_file="${current_file%"${current_file##*[![:space:]]}"}"
         left_line=0
         right_line=0
         seen_hunk=0
@@ -49,8 +51,6 @@ while IFS= read -r line; do
         seen_hunk=1
         left_line=$(echo "$line" | sed 's/@@ -\([0-9]*\).*/\1/')
         right_line=$(echo "$line" | sed 's/@@ -[^ ]* +\([0-9]*\).*/\1/')
-        # Calculate hunk end for boundary check
-        hunk_size=$(echo "$line" | sed -n 's/@@ -[0-9,]*\ +[0-9,]*\ +\(.*\) @@/\1/p')
         printf '\n  %s\n' "$line"
         printf '  %-10s | %-10s | %s\n' "LEFT_LINE" "RIGHT_LINE" "CONTENT"
         printf '  %s\n' "----------- | ----------- | -------"
