@@ -243,6 +243,7 @@ Dùng ngôn ngữ đã chọn cho tất cả comment đăng lên GitHub.
   - `$JSON_FILE_LINE` = `/tmp/gh_review_<PREFIX>.json` (line-level comments, ví dụ: `/tmp/gh_review_acme_backend_42.json`). File này bắt buộc phải có `commit_id` (đã fetch ở Step 4).
   - Nếu file bị xóa hoàn toàn thì không cần tạo comment vì không thể comment trên dòng đã bị xóa. Chỉ comment trên các dòng mới hoặc đã thay đổi.
   - Dùng `$PR_HEAD_SHA` (từ Step 4) trong JSON để GitHub API chấp nhận request
+  - Nếu gặp lỗi Line could not be resolved thì hãy tính toán lại line number dựa vào `cat /tmp/pr_review_<PREFIX>.diff | .claude/skills/review-pr-github/scripts/diff.sh`. Nếu vẫn lỗi thì báo user và dừng lại
 
 ```sh
 gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}/reviews" \
