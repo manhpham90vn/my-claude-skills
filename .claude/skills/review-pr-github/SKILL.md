@@ -49,10 +49,10 @@ Kết quả đầu ra là các inline comment trên từng file và dòng cụ t
 ### Bước 1: Kiểm tra điều kiện đầu vào
 
 1. Xác minh đầu vào là một URL hợp lệ của GitHub PR có định dạng: `https://github.com/<owner>/<repo>/pull/<number>`. Nếu không, trả về lỗi: "Đầu vào không phải là URL hợp lệ của GitHub PR. Vui lòng cung cấp URL như `https://github.com/acme/backend/pull/42`".
-2. Xác minh git đã được cài đặt bằng cách chạy `git --version`. Nếu git chưa được cài đặt, trả về lỗi: "Cần cài đặt Git để sử dụng skill này."
-3. Xác minh gh (GitHub CLI) đã được cài đặt bằng cách chạy `gh --version`. Nếu gh chưa được cài đặt, trả về lỗi: "Cần cài đặt GitHub CLI (gh) để sử dụng skill này."
-4. Xác minh gh (GitHub CLI) đã được xác thực bằng `gh auth status`. Nếu chưa xác thực, trả về lỗi: "Cần xác thực GitHub CLI. Vui lòng chạy `gh auth login` trước."
-5. Xác minh python3 đã được cài đặt bằng cách chạy `python3 --version`. Nếu python3 chưa được cài đặt, trả về lỗi: "Cần cài đặt Python 3 để sử dụng skill này."
+2. Xác minh `git` đã được cài đặt bằng cách chạy `git --version`. Nếu `git` chưa được cài đặt, trả về lỗi: "Cần cài đặt Git để sử dụng skill này."
+3. Xác minh `gh` (GitHub CLI) đã được cài đặt bằng cách chạy `gh --version`. Nếu `gh` chưa được cài đặt, trả về lỗi: "Cần cài đặt GitHub CLI để sử dụng skill này."
+4. Xác minh `gh` (GitHub CLI) đã được xác thực bằng `gh auth status`. Nếu chưa xác thực, trả về lỗi: "Cần xác thực GitHub CLI. Vui lòng chạy `gh auth login` trước."
+5. Xác minh `python3` đã được cài đặt bằng cách chạy `python3 --version`. Nếu `python3` chưa được cài đặt, trả về lỗi: "Cần cài đặt Python 3 để sử dụng skill này."
 
 ### Bước 2: Phân tích URL của PR
 
@@ -62,17 +62,19 @@ Từ URL người dùng cung cấp, trích xuất:
 - `REPO` — tên repository
 - `PR_NUMBER` — số thứ tự PR
 
-**Ví dụ:** `https://github.com/acme/backend/pull/42` → OWNER=acme, REPO=backend, PR_NUMBER=42
+  **Ví dụ:** `https://github.com/acme/backend/pull/42` → OWNER=acme, REPO=backend, PR_NUMBER=42
 
+- Ghi nhớ `SKILL_DIR=~/.claude/skills/review-pr-github/` là thư mục chính của skill này
+- Ghi nhớ `TASKS_DIR=$SKILL_DIR/tasks/` để lưu trữ các file tạm thời liên quan đến PR này (diff, logs, review output)
 - Tạo PREFIX=`<OWNER>_<REPO>_<PR_NUMBER>` để sử dụng cho các bước tiếp theo
 
-**Ví dụ:** `https://github.com/acme/backend/pull/42` -> PREFIX=`acme_backend_42`.
+  **Ví dụ:** `https://github.com/acme/backend/pull/42` -> PREFIX=`acme_backend_42`.
 
 ---
 
 ### Bước 3: Load Checklist(s)
 
-**Đọc checklist(s) từ thư mục `docs/`:**
+**Đọc checklist(s) từ thư mục `$SKILL_DIR/docs`:**
 
 1. Kiểm tra parameter `--checklist` mà người dùng truyền vào:
    - Nếu có comma-separated values (ví dụ: `laravel,docker,github-actions`): parse và load nhiều checklist
@@ -99,7 +101,7 @@ Từ URL người dùng cung cấp, trích xuất:
 **Cấu trúc thư mục:**
 
 ```
-.claude/skills/review-pr-github/
+~/.claude/skills/review-pr-github/
 ├── SKILL.md                    # Skill chính
 ├── docs/
 │   ├── laravel.md              # Checklist cho Laravel/PHP
@@ -120,7 +122,7 @@ Từ URL người dùng cung cấp, trích xuất:
 1. Xác minh thư mục hiện tại là một git repo có remote origin đúng với `<OWNER>/<REPO>`. Nếu không, trả về lỗi: "Thư mục hiện tại không phải là git repo hoặc remote origin không khớp với `<OWNER>/<REPO>`. Vui lòng chuyển đến thư mục chứa repo hoặc clone repo trước."
 2. Checkout branch của PR bằng `gh pr checkout <PR_NUMBER>`.
 3. Lấy **PR head commit SHA** bằng `gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}" --jq '.head.sha'` và lưu vào biến `PR_HEAD_SHA` để sử dụng cho `Bước 8: Đăng review lên GitHub`.
-4. Lấy diff của PR với `gh pr diff <PR_NUMBER>` và lưu vào `.claude/tmp/pr_review_<PREFIX>.diff` (ví dụ: `.claude/tmp/pr_review_acme_backend_42.diff`) bằng command `gh pr diff <PR_NUMBER> > .claude/tmp/pr_review_<PREFIX>.diff`.
+4. Lấy diff của PR với `$SKILL_DIR/scripts/diff.py <owner> <repo> <pr_number> > $TASKS_DIR/pr_diff_<PREFIX>.diff` (ví dụ: `~/.claude/skills/review-pr-github/scripts/diff.py acme backend 42 > ~/.claude/skills/review-pr-github/tasks/pr_diff_acme_backend_42.diff`)
 5. Phân tích file `composer.json` để xác định các công cụ formater/linter có sẵn (phpstan, php-cs-fixer, pint) và cài đặt dependencies nếu cần (ví dụ: `composer install`).
 6. Phân tích file `package.json` để xác định các công cụ formater/linter có sẵn cho frontend (eslint, prettier) và cài đặt dependencies nếu cần (ví dụ: `npm install` hoặc `yarn install`).
 
@@ -132,11 +134,11 @@ Ghi nhớ vị trí file diff để sử dụng ở `Bước 6: Phân tích diff
 
 > **Lưu ý:** Để tối ưu performance, chỉ chạy các công cụ trên **các file trong diff** (không chạy toàn bộ codebase).
 
-1. Lấy danh sách file thay đổi từ diff: `git diff --name-only` hoặc đọc từ `.claude/tmp/pr_review_<PREFIX>.diff`.
-2. Nếu có `phpstan`, chạy `phpstan analyse` **chỉ trên các file PHP trong diff**. Lưu lỗi vào `.claude/tmp/phpstan_<PREFIX>.log`.
-3. Nếu có `php-cs-fixer` hoặc `pint`, chạy trên **các file PHP trong diff** để kiểm tra lỗi style. Lưu lỗi vào `.claude/tmp/phpcs_<PREFIX>.log`.
-4. Nếu có `eslint` hoặc `prettier`, chạy trên **các file JS/TS/CSS trong diff** để kiểm tra lỗi style. Lưu lỗi vào `.claude/tmp/eslint_<PREFIX>.log` hoặc `.claude/tmp/prettier_<PREFIX>.log`.
-5. Nếu có test suite (PHPUnit, Pest, Jest...), chạy test trên **các file liên quan trong diff** để đảm bảo không có lỗi mới. Lưu kết quả vào `.claude/tmp/test_<PREFIX>.log`.
+1. Lấy danh sách file thay đổi từ diff đọc từ `$TASKS_DIR/pr_diff_<PREFIX>.diff`.
+2. Nếu có `phpstan`, chạy `phpstan analyse` **chỉ trên các file PHP trong diff**. Lưu lỗi vào `$TASKS_DIR/phpstan_<PREFIX>.log`.
+3. Nếu có `php-cs-fixer` hoặc `pint`, chạy trên **các file PHP trong diff** để kiểm tra lỗi style. Lưu lỗi vào `$TASKS_DIR/phpcs_<PREFIX>.log`.
+4. Nếu có `eslint` hoặc `prettier`, chạy trên **các file JS/TS/CSS trong diff** để kiểm tra lỗi style. Lưu lỗi vào `$TASKS_DIR/eslint_<PREFIX>.log` hoặc `$TASKS_DIR/prettier_<PREFIX>.log`.
+5. Nếu có test suite (PHPUnit, Pest, Jest...), chạy test trên **các file liên quan trong diff** để đảm bảo không có lỗi mới. Lưu kết quả vào `$TASKS_DIR/test_<PREFIX>.log`.
 
 Ghi nhớ vị trí các file log để phân tích ở `Bước 6: Phân tích diff và source code thực tế`.
 
@@ -144,8 +146,8 @@ Ghi nhớ vị trí các file log để phân tích ở `Bước 6: Phân tích 
 
 ### Bước 6: Phân tích diff và source code thực tế
 
-- Đọc diff từ `.claude/tmp/pr_review_<PREFIX>.diff` để lấy danh sách các file thay đổi. Sau đó **với mỗi file**, đọc **source code thực tế trên đĩa** để phân tích chi tiết. Không chỉ dựa vào nội dung diff.
-- Đọc log từ các công cụ static analysis (phpstan, phpcs, pint, eslint, prettier, phpunit, jest) để lấy danh sách lỗi và cảnh báo (nếu có). ví dụ `.claude/tmp/phpstan_<PREFIX>.log`, `.claude/tmp/phpcs_<PREFIX>.log`, `.claude/tmp/pint_<PREFIX>.log` từ bước `Bước 5: Chạy lint, formatter, static analysis, test` liên kết lỗi từ static analysis với các dòng thay đổi trong diff để xác định vị trí cụ thể của lỗi trong file.
+- Đọc diff từ `$TASKS_DIR/pr_diff_<PREFIX>.diff` để lấy danh sách các file thay đổi. Sau đó **với mỗi file**, đọc **source code thực tế trên đĩa** để phân tích chi tiết. Không chỉ dựa vào nội dung diff.
+- Đọc log từ các công cụ static analysis (phpstan, phpcs, pint, eslint, prettier, phpunit, jest) để lấy danh sách lỗi và cảnh báo (nếu có). ví dụ `$TASKS_DIR/phpstan_<PREFIX>.log`, `$TASKS_DIR/phpcs_<PREFIX>.log`, `$TASKS_DIR/pint_<PREFIX>.log` từ bước `Bước 5: Chạy lint, formatter, static analysis, test` liên kết lỗi từ static analysis với các dòng thay đổi trong diff để xác định vị trí cụ thể của lỗi trong file.
 
 **Quy trình phân tích từng file:**
 
@@ -164,35 +166,60 @@ CHECKLIST_CONTENT - (đã load ở `Bước 3: Load Checklist(s)` - có thể ba
 
 Trình bày kết quả **theo từng file**, rồi **theo từng dòng/block cụ thể**.
 
-**Comment thường — dùng khi chỉ giải thích, không có code cụ thể**
+#### 7.1. Cấu trúc chuẩn của một comment
 
-File: `path/to/file.ext`
-Dòng <N> — <Rule ID> — <Priority>
+Mỗi comment trên GitHub **bắt buộc** có các thành phần theo thứ tự sau:
 
-**Vấn đề:** Giải thích ngắn gọn tại sao đây là một vấn đề và đề xuất cách cải thiện
+```
+**Rule:** <RULE_ID>
+**Priority:** <PRIORITY>
+**File:** <path/to/file.ext> | Dòng <N>
 
-**Comment có đề xuất — dùng khi có code cụ thể để thay thế**
+<Vấn đề:> Giải thích ngắn gọn tại sao đây là một vấn đề.
+<Đề xuất:> (nếu có) Cách cải thiện cụ thể.
+```
+
+#### 7.2. Hai loại comment
+
+**Comment thường — không có code suggestion**
+
+Dùng khi chỉ cần giải thích hoặc đề xuất thay đổi không cần code cụ thể.
+
+```
+**Rule:** RULE_DB_01
+**Priority:** 🔴 Critical
+**File:** app/Models/User.php | Dòng 42
+
+**Vấn đề:** Query này có N+1 problem — mỗi user trong vòng lặp sẽ trigger một câu query riêng.
+**Đề xuất:** Dùng eager loading: `User::with('posts')->get()` thay vì loop.
+```
+
+**Comment có code suggestion — dùng khi có code cụ thể để thay thế**
 
 Reviewer có thể nhấn **"Apply suggestion"** để áp dụng trực tiếp trên GitHub.
 
-File: `path/to/file.ext`
-Dòng <N> — <Rule ID> — <Priority>
+````
+**Rule:** RULE_LW_01
+**Priority:** 🔴 Critical
+**File:** app/Livewire/UpdateProfile.php | Dòng 78
 
-**Vấn đề:** Giải thích ngắn gọn tại sao đây là một vấn đề và đề xuất cách cải thiện
+**Vấn đề:** Action không có authorization check — user có thể gọi trực tiếp từ frontend mà không qua permission.
+**Đề xuất:** Thêm Gate::authorize() trước khi thực hiện mutation.
 
 ```suggestion
-dòng code thay thế hoàn chỉnh
+public function updateProfile()
+{
+    Gate::authorize('update', $this->user);
+
+    // ... existing code
+}
 ```
 
-#### Cách xác định line number cho comment:
+````
 
-- Chạy script `.claude/skills/review-pr-github/scripts/diff.py <owner> <repo> <pr_number>` (ví dụ: `diff.py acme backend 42`) để xác định line number chính xác trong file thực tế dựa trên diff. Script này sẽ trả về line number tương ứng với file thực tế, không phải line number trong unified diff. Chỉ các dòng `added` (dòng thay đổi thực sự) mới được trả về.
-- **File mới hoàn toàn:** Dùng `side: "RIGHT"`, chỉ cần `line`.
-- **File bị sửa (modified):** Dùng `side: "RIGHT"`, cần cả `line` (dòng mới) và `start_line` (dòng bắt đầu của thay đổi trong unified diff). Nếu không rõ, dùng unified diff line number.
+#### 7.4. Lưu JSON output
 
-#### Output
-
-- Lưu line-level comments vào `.claude/tmp/gh_review_<PREFIX>.json`
+- Lưu comments vào `$TASKS_DIR/gh_review_<PREFIX>.json`
 
 **Line-level JSON format** (bắt buộc có `commit_id`):
 
@@ -205,49 +232,48 @@ dòng code thay thế hoàn chỉnh
       "path": "app/Http/Controllers/UserController.php",
       "line": 42,
       "side": "RIGHT",
-      "body": "**Vấn đề:** Giải thích ngắn gọn tại sao đây là một vấn đề."
+      "body": "**Rule:** RULE_DB_01\n**Priority:** 🔴 Critical\n**File:** app/Http/Controllers/UserController.php | Dòng 42\n\n**Vấn đề:** Query này có N+1 problem.",
+      "commit_id": "<PR_HEAD_SHA từ Step 4>"
     },
     {
       "path": "app/Http/Controllers/UserController.php",
       "line": 56,
       "start_line": 50,
       "side": "RIGHT",
-      "body": "**Vấn đề:** Giải thích.\n\n```suggestion\ndòng code thay thế hoàn chỉnh\n```"
+      "body": "**Rule:** RULE_LW_01\n**Priority:** 🔴 Critical\n**File:** app/Http/Controllers/UserController.php | Dòng 56\n\n**Vấn đề:** Action không có authorization check.\n\n```suggestion\nGate::authorize('update', $this->user);\n```",
+      "commit_id": "<PR_HEAD_SHA từ Step 4>"
     }
   ]
 }
 ````
 
----
+#### 7.5. Các quy tắc khi format comment
 
-### Bước 8: Hỏi người dùng về ngôn ngữ comment
-
-**Trước khi đăng comment lên GitHub, hỏi người dùng:**
-
-> "Bạn muốn tôi dùng ngôn ngữ nào khi đăng review comment lên GitHub?"
->
-> Các lựa chọn:
->
-> - Tiếng Anh (khuyến nghị cho team quốc tế)
-> - Tiếng Việt
-
-(Nếu người dùng không trả lời hoặc trả lời không rõ ràng, mặc định chọn Tiếng Việt)
-
-Dùng ngôn ngữ đã chọn cho tất cả comment đăng lên GitHub.
+| Quy tắc                        | Mô tả                                                                                         |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| **Thứ tự cố định**             | `Rule` → `Priority` → `File` → `Vấn đề` → `Đề xuất` → code suggestion                         |
+| **Priority**                   | Luôn dùng emoji: 🔴 Critical, 🟠 High, 🟡 Medium                                              |
+| **Code suggestion**            | Chỉ dùng khi có thể apply trực tiếp; indent 4 spaces bên trong block                          |
+| **Không dùng markdown header** | Không dùng `###` hay `---` trong body comment vì GitHub không render đúng trong inline review |
+| **Không hardcode emoji**       | Luôn dùng `*` xung quanh text để GitHub parse đúng markdown                                   |
+| **Giữ ngắn**                   | Mỗi comment tối đa 5-7 dòng; issue phức tạp thì chia thành nhiều comments                     |
+| **Không trùng lặp**            | Nếu cùng một rule vi phạm ở nhiều file, đăng comment riêng ở mỗi file, không gộp              |
+| **PR overview**                | Đăng summary comment sau khi tất cả inline comments đã đăng                                   |
 
 ---
 
-### Bước 9: Đăng review lên GitHub
+### Bước 8: Đăng review lên GitHub
 
 - Sau khi xuất kết quả review, **tự động đăng review lên GitHub** (dùng GitHub CLI (`gh`) để đăng review với các comment đã chuẩn bị)
 - Lưu ý quan trọng phải tuân thủ các quy tắc sau khi đăng review:
-  - `$JSON_FILE_LINE` = `.claude/tmp/gh_review_<PREFIX>.json` (line-level comments, ví dụ: `.claude/tmp/gh_review_acme_backend_42.json`). File này bắt buộc phải có `commit_id` (đã fetch ở Step 4).
+  - `$JSON_FILE_LINE` = `$TASKS_DIR/gh_review_<PREFIX>.json` (line-level comments, ví dụ: `$TASKS_DIR/gh_review_acme_backend_42.json`).
   - Nếu file bị xóa hoàn toàn thì không cần tạo comment vì không thể comment trên dòng đã bị xóa. Chỉ comment trên các dòng mới hoặc đã thay đổi.
-  - Dùng `$PR_HEAD_SHA` (từ Step 4) trong JSON để GitHub API chấp nhận request
-  - Nếu gặp lỗi Line could not be resolved thì đọc lại `#### Cách xác định line number cho comment:` ở `### Bước 7: Định dạng kết quả review thành các comment có cấu trúc rõ ràng` và verify lại line number bằng `grep -n` trên file thực tế.
+  - Dùng `$PR_HEAD_SHA` (từ `Bước 4: Thiết lập — git repo, dependencies`) trong JSON để GitHub API chấp nhận request
+  - Line number trong comment thì lấy từ file diff `$TASKS_DIR/pr_diff_<PREFIX>.diff`
+  - Nếu gặp lỗi `Line could not be resolved` thì đọc lại từ source và verify lại line number bằng `grep -n` để map lại line number chính xác.
 
 ```sh
 gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}/reviews" \
   --method POST \
-  --input ".claude/tmp/gh_review_<PREFIX>.json"
+  --input "$TASKS_DIR/gh_review_<PREFIX>.json"
 ```

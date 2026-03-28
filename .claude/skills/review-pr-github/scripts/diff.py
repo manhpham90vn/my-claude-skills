@@ -10,6 +10,7 @@ Output: Valid line numbers for GitHub PR review API (chỉ dòng nằm TRONG pat
 
     Với modified files: chỉ trả về dòng nằm TRONG hunks
     Với new files: tất cả dòng trong patch
+    Với binary files: trả về "__binary__", không crash
 """
 
 import subprocess
@@ -29,9 +30,18 @@ def parse_hunks(patch):
     """
     Parse unified diff patch và trả về list các dòng added nằm TRONG hunks.
     Chỉ dòng added (bắt đầu bằng '+') mới được dùng cho review comment.
+
+    Returns:
+        list: Danh sách các dòng added.
+        str: "__binary__" nếu file là binary (không xử lý).
+        None: Nếu không có patch.
     """
     if not patch:
-        return []
+        return None  # No patch available
+
+    # GitHub marks binary files with a specific placeholder in the patch field
+    if patch.strip() == 'Binary file not shown.':
+        return "__binary__"
 
     lines = patch.split('\n')
     valid_lines = []
@@ -113,22 +123,31 @@ def main():
             all_valid_lines[filename] = []
             continue
 
-        valid_lines = parse_hunks(patch)
-        all_valid_lines[filename] = valid_lines
+        result = parse_hunks(patch)
+
+        # Handle binary files
+        if result == "__binary__":
+            print("   ⚠️ Binary file - bỏ qua (không thể comment trên dòng)")
+            all_valid_lines[filename] = "__binary__"
+            continue
+
+        # Handle no patch (None)
+        if result is None:
+            print("   ⚠️ Không có patch để analyze")
+            all_valid_lines[filename] = []
+            continue
+
+        all_valid_lines[filename] = result
 
         if status == 'added':
-            print(f"   📄 NEW FILE - {len(valid_lines)} dòng valid")
+            print(f"   📄 NEW FILE - {len(result)} dòng valid")
         else:
-            print(f"   📄 MODIFIED - {len(valid_lines)} dòng valid trong hunks")
+            print(f"   📄 MODIFIED - {len(result)} dòng valid trong hunks")
 
-        # Hiển thị 5 dòng đầu tiên
-        if valid_lines:
-            print("   Added lines (first 5):")
-            for vl in valid_lines[:5]:
-                content = vl['content'][:60] + ('...' if len(vl['content']) > 60 else '')
+        if result:
+            for vl in result:
+                content = vl['content']
                 print(f"      +Line {vl['line']:4d}: {content}")
-            if len(valid_lines) > 5:
-                print(f"      ... ({len(valid_lines) - 5} more lines)")
 
     print("\n" + "=" * 70)
     print("\n✅ Script hoàn thành!")
