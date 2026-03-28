@@ -159,7 +159,7 @@ CHECKLIST_CONTENT - (đã load ở `Bước 3: Load Checklist(s)` - có thể ba
 
 ---
 
-### Bước 7: Định dạng kết quả review thành các comment có cấu trúc rõ ràng, dễ hiểu, và có thể áp dụng trực tiếp trên GitHub (dùng "suggestion" để có nút "Apply suggestion").
+### Bước 7: Định dạng kết quả review thành các comment có cấu trúc rõ ràng
 
 Trình bày kết quả **theo từng file**, rồi **theo từng dòng/block cụ thể**.
 
@@ -185,9 +185,25 @@ dòng code thay thế hoàn chỉnh
 
 #### Cách xác định line number cho comment:
 
-- Chạy script `.claude/skills/review-pr-github/scripts/diff.sh` để map line number trong diff sang line number thực tế trong file sau khi merge (dòng mới): `cat /tmp/pr_review_<PREFIX>.diff | .claude/skills/review-pr-github/scripts/diff.sh`.
-- **File mới hoàn toàn:** Dùng `side: "RIGHT"`, chỉ cần `line`.
-- **File bị sửa (modified):** Dùng `side: "RIGHT"`, cần cả `line` (dòng mới) và `start_line` (dòng bắt đầu của thay đổi trong unified diff). Nếu không rõ, dùng unified diff line number.
+**⚠️ Quy trình bắt buộc để tránh lỗi "Line could not be resolved":**
+
+1. **Chạy script diff.sh** để map sơ bộ: `cat /tmp/pr_review_<PREFIX>.diff | .claude/skills/review-pr-github/scripts/diff.sh`. Script đã được cập nhật hỗ trợ **new files** (hiển thị `[NEW FILE]` và tự bump `right_line` lên 1 nếu hunk bắt đầu từ 0).
+
+2. **Xác định loại file:**
+   - **File mới hoàn toàn (new file):** GitHub API chỉ chấp nhận `side: "RIGHT"` + `line` ≥ 1. Script tự bump, nhưng **LUÔN verify bằng `grep -n`** trên file thực tế.
+   - **File bị sửa (modified):** Dùng `side: "RIGHT"`, cần cả `line` (dòng mới) và `start_line` (dòng bắt đầu của thay đổi).
+
+3. **Verify bằng `grep -n` trên file thực tế (BẮT BUỘC):**
+
+   ```sh
+   # Ví dụ: tìm dòng chứa @csrf trong file mới
+   grep -n "@csrf" /home/manh/Project/verybest/rikon-sodan/resources/views/user/advisor/advisor-reservation.blade.php
+   # → 18:    <form wire:submit.prevent="submit"
+   ```
+
+4. **Test trước khi đăng:** Nếu GitHub API trả về `"Line could not be resolved"` → line number chưa đúng → verify lại bằng `grep -n`.
+
+> **Tại sao không dùng line number từ unified diff?** Line numbers trong unified diff patch file (ví dụ dòng 2348) là số dòng trong file `.diff` trên disk, KHÔNG phải số dòng trong file thực tế trên GitHub. Luôn dùng `grep -n` để lấy line number chính xác.
 
 #### Output
 
@@ -243,6 +259,7 @@ Dùng ngôn ngữ đã chọn cho tất cả comment đăng lên GitHub.
   - `$JSON_FILE_LINE` = `/tmp/gh_review_<PREFIX>.json` (line-level comments, ví dụ: `/tmp/gh_review_acme_backend_42.json`). File này bắt buộc phải có `commit_id` (đã fetch ở Step 4).
   - Nếu file bị xóa hoàn toàn thì không cần tạo comment vì không thể comment trên dòng đã bị xóa. Chỉ comment trên các dòng mới hoặc đã thay đổi.
   - Dùng `$PR_HEAD_SHA` (từ Step 4) trong JSON để GitHub API chấp nhận request
+  - Nếu gặp lỗi Line could not be resolved thì đọc lại `#### Cách xác định line number cho comment:` ở `### Bước 7: Định dạng kết quả review thành các comment có cấu trúc rõ ràng` và verify lại line number bằng `grep -n` trên file thực tế.
 
 ```sh
 gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}/reviews" \
