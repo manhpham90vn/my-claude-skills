@@ -160,7 +160,7 @@ CHECKLIST_CONTENT - (đã load ở `Bước 3: Load Checklist(s)` - có thể ba
 
 ---
 
-### Bước 7: Định dạng kết quả review thành các comment có cấu trúc rõ ràng, dễ hiểu, và có thể áp dụng trực tiếp trên GitHub (dùng "suggestion" để có nút "Apply suggestion").
+### Bước 7: Định dạng kết quả review thành các comment có cấu trúc rõ ràng
 
 Trình bày kết quả **theo từng file**, rồi **theo từng dòng/block cụ thể**.
 
@@ -244,6 +244,7 @@ Dùng ngôn ngữ đã chọn cho tất cả comment đăng lên GitHub.
   - `$JSON_FILE_LINE` = `.claude/tmp/gh_review_<PREFIX>.json` (line-level comments, ví dụ: `.claude/tmp/gh_review_acme_backend_42.json`). File này bắt buộc phải có `commit_id` (đã fetch ở Step 4).
   - Nếu file bị xóa hoàn toàn thì không cần tạo comment vì không thể comment trên dòng đã bị xóa. Chỉ comment trên các dòng mới hoặc đã thay đổi.
   - Dùng `$PR_HEAD_SHA` (từ Step 4) trong JSON để GitHub API chấp nhận request
+  - Nếu gặp lỗi Line could not be resolved thì đọc lại `#### Cách xác định line number cho comment:` ở `### Bước 7: Định dạng kết quả review thành các comment có cấu trúc rõ ràng` và verify lại line number bằng `grep -n` trên file thực tế.
 
 ```sh
 gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}/reviews" \
